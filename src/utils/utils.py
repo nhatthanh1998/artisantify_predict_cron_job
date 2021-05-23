@@ -1,5 +1,11 @@
 import torch
 from torchvision.transforms import transforms
+from torchvision.utils import save_image
+from dotenv import load_dotenv
+import os
+
+
+load_dotenv()
 
 
 def load_model(path, generator):
@@ -19,5 +25,7 @@ def transform(image_size):
     return transform_
 
 
-def save_image():
-    pass
+def save_generated_image(generated_image, image_name):
+    PUBLIC_DIR = os.environ.get("PUBLIC_DIR")
+    SAVE_DIR = f"{PUBLIC_DIR}/images/{image_name}"
+    save_image(generated_image, SAVE_DIR)
