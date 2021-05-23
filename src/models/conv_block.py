@@ -7,7 +7,8 @@ class ConvBlock(nn.Module):
         super(ConvBlock, self).__init__()
         self.upsample = upsample
         self.block = nn.Sequential(
-            nn.ReflectionPad2d(kernel_size // 2), nn.Conv2d(in_channels, out_channels, kernel_size, stride)
+            nn.ReflectionPad2d(kernel_size // 2),
+            nn.Conv2d(in_channels, out_channels, kernel_size, stride)
         )
         self.norm = nn.InstanceNorm2d(out_channels, affine=True) if normalize else None
         self.relu = relu
