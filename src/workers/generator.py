@@ -1,9 +1,10 @@
 from PIL import Image
 from src.models.generator import GeneratorModel
 import requests
-from src.utils.utils import load_model, transform, save_generated_image
+from src.utils.utils import load_model, transform, save_generated_image, transform_byte_to_object
 import uuid
 import pika
+import json
 
 
 class GeneratorWorker:
@@ -15,9 +16,15 @@ class GeneratorWorker:
         self.transform_ = transform(image_size=256)
         self.generator = load_model(path=self.snapshot_path, generator=self.generator)
 
-    def process_image(self, photoLocation, socketID, styleName):
+    def process_image(self, ch, method, properties, body):
+        body = transform_byte_to_object(body)
+        # extract data from body
+        data = body['data']
+        socketID = data['socketID']
+        accessURL = data['accessURL']
+
         image_name = f"{uuid.uuid4()}.jpg"
-        photo = Image.open(requests.get(photoLocation, stream=True).raw)
+        photo = Image.open(requests.get(accessURL, stream=True).raw)
         photo = self.transform_(photo).unsqueeze(0)
         transform_image = self.generator(photo)
         save_generated_image(generated_image=transform_image, image_name=image_name)
