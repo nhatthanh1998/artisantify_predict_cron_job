@@ -13,11 +13,11 @@ def load_model(path, generator):
     return generator
 
 
-def transform(image_size):
+def transform():
     """ Transforms for training images """
     transform_ = transforms.Compose(
         [
-            transforms.Resize((image_size, image_size)),
+            transforms.Resize(256),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ]

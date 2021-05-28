@@ -1,33 +1,40 @@
+import torch.cuda
 from PIL import Image
 from src.models.generator import GeneratorModel
 import requests
 from src.utils.utils import load_model, transform, save_generated_image, transform_byte_to_object
 import uuid
 import pika
-import json
 
 
 class GeneratorWorker:
-    def __init__(self, queue_name, queue_host, snapshot_path):
+    def __init__(self, queue_name, queue_host, snapshot_path, main_server_endpoint):
         self.snapshot_path = snapshot_path
         self.queue_name = queue_name
         self.queue_host = queue_host
+        self.main_server_endpoint = main_server_endpoint
         self.generator = GeneratorModel()
-        self.transform_ = transform(image_size=256)
+        self.transform_ = transform()
         self.generator = load_model(path=self.snapshot_path, generator=self.generator)
 
     def process_image(self, ch, method, properties, body):
+        print("message coming!!!!!")
         body = transform_byte_to_object(body)
         # extract data from body
         data = body['data']
         socketID = data['socketID']
         accessURL = data['accessURL']
-
+        styleID = data['styleID']
         image_name = f"{uuid.uuid4()}.jpg"
         photo = Image.open(requests.get(accessURL, stream=True).raw)
         photo = self.transform_(photo).unsqueeze(0)
+        print(photo.shape)
         transform_image = self.generator(photo)
         save_generated_image(generated_image=transform_image, image_name=image_name)
+        endpoint_url = f"{self.main_server_endpoint}/photos/transfer-photo/completed"
+        data = {'socketID': socketID, 'transferPhotoName': f'images/{image_name}', 'styleID': styleID}
+        requests.post(endpoint_url, data=data)
+        torch.cuda.empty_cache()
 
     def start_task(self):
         connection = pika.BlockingConnection(pika.URLParameters(self.queue_host))
