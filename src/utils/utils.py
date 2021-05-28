@@ -4,12 +4,12 @@ from torchvision.utils import save_image
 from dotenv import load_dotenv
 import os
 import json
-
+from smart_open import open
 load_dotenv()
 
 
 def load_model(path, generator):
-    generator.load_state_dict(torch.load(path + '/generator.pth'))
+    generator.load_state_dict(torch.hub.load_state_dict_from_url(path))
     return generator
 
 

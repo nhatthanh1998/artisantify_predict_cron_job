@@ -2,13 +2,14 @@ import pika
 import sys
 import os
 from dotenv import load_dotenv
-from workers.generator import GeneratorWorker
+from src.workers.generator import GeneratorWorker
 import argparse
 import requests
+import json
 
 
 load_dotenv()
-QUEUE_NAME = os.environ.get("QUEUE_NAME")
+EXCHANGE_NAME = os.environ.get("EXCHANGE_NAME")
 QUEUE_HOST = os.environ.get("QUEUE_HOST")
 MAIN_SERVER_ENDPOINT = os.environ.get("MAIN_SERVER_ENDPOINT")
 parser = argparse.ArgumentParser()
@@ -23,10 +24,17 @@ if len(styleID) == 0:
 else:
     if __name__ == '__main__':
         try:
-            generator_worker = GeneratorWorker(queue_name=QUEUE_NAME, queue_host=QUEUE_HOST,
-                                               snapshot_path='model_weights/mosaic/1',
+            response = requests.get(f"{MAIN_SERVER_ENDPOINT}/styles/{styleID}/active-model")
+            data = json.loads(response.content.decode('utf-8'))
+            
+            exchangeName = data.get("exchangeName")
+            modelType = data.get("modelType")
+            snapshotPath = data.get("snapshotPath")
+
+            generator_worker = GeneratorWorker(exchange_name=exchangeName, queue_host=QUEUE_HOST,
+                                               snapshot_path=snapshotPath,
                                                main_server_endpoint=MAIN_SERVER_ENDPOINT
-                                            )
+                                               )
             generator_worker.start_task()
         except KeyboardInterrupt:
             print('Interrupted')
