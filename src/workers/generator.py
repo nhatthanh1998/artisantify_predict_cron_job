@@ -8,9 +8,10 @@ import pika
 
 
 class GeneratorWorker:
-    def __init__(self, queue_host, exchange_name, snapshot_path, main_server_endpoint):
+    def __init__(self, queue_host, queue_name, exchange_name, snapshot_path, main_server_endpoint):
         self.snapshot_path = snapshot_path
         self.queue_host = queue_host
+        self.queue_name = queue_name
         self.exchange_name = exchange_name
         self.main_server_endpoint = main_server_endpoint
         self.generator = Generator()
@@ -39,11 +40,9 @@ class GeneratorWorker:
         connection = pika.BlockingConnection(pika.URLParameters(self.queue_host))
         channel = connection.channel()
         # create queue if it not exist
-        channel.exchange_declare(exchange=self.exchange_name, exchange_type='direct')
-        result = channel.queue_declare(queue='', exclusive=True)
-        queue_name = result.method.queue
-        channel.queue_bind(exchange=self.exchange_name, queue=queue_name)
-        channel.basic_consume(queue=queue_name, on_message_callback=self.process_image, auto_ack=True)
+        channel.exchange_declare(exchange='style-name-1', exchange_type='direct')
+        channel.queue_bind(exchange='style-name-1', queue = self.queue_name)
+        channel.basic_consume(queue=self.queue_name, on_message_callback=self.process_image, auto_ack=True)
 
-        print(' [*] Waiting for messages. To exit press CTRL+C')
+        print(f' [*] Waiting for messages at exchange {self.exchange_name}.  To exit press CTRL+C')
         channel.start_consuming()

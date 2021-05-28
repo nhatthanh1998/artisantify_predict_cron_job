@@ -11,6 +11,8 @@ import json
 load_dotenv()
 EXCHANGE_NAME = os.environ.get("EXCHANGE_NAME")
 QUEUE_HOST = os.environ.get("QUEUE_HOST")
+QUEUE_NAME = os.environ.get("QUEUE_NAME")
+
 MAIN_SERVER_ENDPOINT = os.environ.get("MAIN_SERVER_ENDPOINT")
 parser = argparse.ArgumentParser()
 
@@ -30,8 +32,8 @@ else:
             exchangeName = data.get("exchangeName")
             modelType = data.get("modelType")
             snapshotPath = data.get("snapshotPath")
-
             generator_worker = GeneratorWorker(exchange_name=exchangeName, queue_host=QUEUE_HOST,
+                                               queue_name = QUEUE_NAME,
                                                snapshot_path=snapshotPath,
                                                main_server_endpoint=MAIN_SERVER_ENDPOINT
                                                )
