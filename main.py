@@ -1,4 +1,3 @@
-import pika
 import sys
 import os
 from dotenv import load_dotenv
@@ -30,7 +29,7 @@ else:
             data = json.loads(response.content.decode('utf-8'))
             EXCHANGE_TRANSFER_PHOTO = os.environ.get("EXCHANGE_TRANSFER_PHOTO")
             EXCHANGE_UPDATE_MODEL = os.environ.get("EXCHANGE_UPDATE_MODEL")
-            routing_key = data.get("transportChannelName")
+            routing_key = data.get("routingKey")
             modelType = data.get("modelType")
             snapshot_path = data.get("snapshotPath")
             generator_worker = GeneratorWorker(

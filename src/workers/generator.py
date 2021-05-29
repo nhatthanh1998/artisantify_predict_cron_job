@@ -6,6 +6,7 @@ from src.utils.utils import load_model, transform, transform_byte_to_object, sav
 import uuid
 import pika
 from datetime import datetime
+from torchvision.utils import save_image
 
 
 class GeneratorWorker:
@@ -38,9 +39,10 @@ class GeneratorWorker:
         return model_input
 
     def inference(self, model_input):
-        return self.generator(model_input)
+        return self.generator(model_input)[0]
 
     def post_process(self, model_output, image_name, socketId):
+        save_image(model_output, './my_image.jpg')
         byte_data = transform_tensor_to_bytes(model_output)
         image_location = save_image_to_s3(byte_data, image_name)
 
@@ -65,9 +67,8 @@ class GeneratorWorker:
 
     def process_transfer_photo_task(self, ch, method, properties, body):
         print("Transfer photo task on process...")
-        body = transform_byte_to_object(body)
+        data = transform_byte_to_object(body)
         # extract data from body
-        data = body['data']
         socketId = data['socketId']
         accessURL = data['accessURL']
         date_time = datetime.now().strftime("%m-%d-%Y")
@@ -75,6 +76,7 @@ class GeneratorWorker:
 
         # Put data to model process pipeline
         self.handler(ch=ch, method=method, photo_access_url=accessURL, socketId=socketId, image_name=image_name)
+        print("Transfer done")
 
     def process_update_model_task(self, ch, method, properties, body):
         print("Start update model....")
@@ -95,7 +97,7 @@ class GeneratorWorker:
         rs = self.channel.queue_declare(queue='', exclusive=True)
         queue_name = rs.method.queue
         self.channel.exchange_declare(exchange=self.exchange_update_model_name, exchange_type='fanout')
-        self.channel.queue_bind(exchange=self.exchange_update_model_name, queue=queue_name)
+        self.channel.queue_bind(exchange=self.exchange_update_model_name, queue=queue_name, routing_key=self.routing_key)
         self.channel.basic_consume(queue=queue_name, on_message_callback=self.process_update_model_task)
 
     def start_task(self):

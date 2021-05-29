@@ -5,6 +5,12 @@ import os
 import json
 import boto3
 import io
+from torchvision.utils import make_grid
+from PIL import Image
+
+load_dotenv()
+ENV = os.environ.get("ENV", "dev")
+S3_BUCKET_TEMPORARY = os.environ.get("S3_BUCKET_TEMPORARY")
 
 
 def init_s3_bucket(env, bucket):
@@ -25,18 +31,7 @@ def init_s3_bucket(env, bucket):
     return s3_client, region
 
 
-load_dotenv()
-
-ENV = os.environ.get("ENV", "dev")
-S3_BUCKET = os.environ.get("S3_BUCKET")
-s3, S3_REGION = init_s3_bucket(bucket=S3_BUCKET, env=ENV)
-
-
-transform_tensor_to_pil_image = transforms.Compose(
-    [
-        transforms.ToPILImage()
-    ]
-)
+s3, S3_REGION = init_s3_bucket(bucket=S3_BUCKET_TEMPORARY, env=ENV)
 
 
 def load_model(path, generator, device):
@@ -49,17 +44,18 @@ def transform():
     transform_ = transforms.Compose(
         [
             transforms.Resize(256),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            transforms.ToTensor()
         ]
     )
     return transform_
 
 
-def transform_tensor_to_bytes(img):
-    img = transform_tensor_to_pil_image(img)
+def transform_tensor_to_bytes(tensor):
+    grid = make_grid(tensor)
+    ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to('cpu', torch.uint8).numpy()
+    img = Image.fromarray(ndarr)
     img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format='PNG')
+    img.save(img_byte_arr, format='JPEG')
     return img_byte_arr.getvalue()
 
 
@@ -70,9 +66,9 @@ def transform_byte_to_object(byte_data):
 
 
 def get_s3_location(key):
-    return f'https://s3-{S3_REGION}.amazonaws.com/{S3_BUCKET}/{key}'
+    return f'https://s3-{S3_REGION}.amazonaws.com/{S3_BUCKET_TEMPORARY}/{key}'
 
 
 def save_image_to_s3(binary_data, key):
-    s3.put_object(Body=binary_data, Bucket=S3_BUCKET, Key=key)
+    s3.put_object(Body=binary_data, Bucket=S3_BUCKET_TEMPORARY, Key=key)
     return get_s3_location(key)
