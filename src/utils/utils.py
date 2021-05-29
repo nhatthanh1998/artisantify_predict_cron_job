@@ -9,27 +9,36 @@ import io
 
 load_dotenv()
 
-env = os.environ.get("ENV", "dev")
+ENV = os.environ.get("ENV", "dev")
 S3_BUCKET = os.environ.get("S3_BUCKET")
+s3, S3_REGION = init_s3_bucket(bucket=S3_BUCKET, env=ENV)
 
-if env == "production":
-    s3 = boto3.client('s3')
-else:
-    AWS_PUBLIC_KEY = os.environ.get("AWS_PUBLIC_KEY")
-    AWS_PRIVATE_KEY = os.environ.get("AWS_PRIVATE_KEY")
-    session = boto3.Session(
-        aws_access_key_id=AWS_PUBLIC_KEY,
-        aws_secret_access_key=AWS_PRIVATE_KEY
-    )
-    s3 = session.client('s3')
-
-S3_REGION = s3.get_bucket_location(Bucket=S3_BUCKET)['LocationConstraint']
 
 transform_tensor_to_pil_image = transforms.Compose(
     [
         transforms.ToPILImage()
     ]
 )
+
+
+def init_s3_bucket(env, bucket):
+    
+    if env == "production":
+        s3 = boto3.client('s3')
+
+    else:
+        AWS_PUBLIC_KEY = os.environ.get("AWS_PUBLIC_KEY")
+        AWS_PRIVATE_KEY = os.environ.get("AWS_PRIVATE_KEY")
+        session = boto3.Session(
+            aws_access_key_id=AWS_PUBLIC_KEY,
+            aws_secret_access_key=AWS_PRIVATE_KEY
+        )
+        s3 = session.client('s3')
+
+    S3_REGION = s3.get_bucket_location(Bucket=bucket)['LocationConstraint']
+
+    return s3, S3_REGION
+
 
 
 def load_model(path, generator, device):
@@ -54,13 +63,6 @@ def transform_tensor_to_bytes(img):
     img_byte_arr = io.BytesIO()
     img.save(img_byte_arr, format='PNG')
     return img_byte_arr.getvalue()
-
-
-def save_generated_image(generated_image, image_name):
-    PUBLIC_DIR = os.environ.get("PUBLIC_DIR")
-    save_dir = os.path.abspath(PUBLIC_DIR)
-    SAVE_DIR = os.path.join(save_dir, image_name)
-    save_image(generated_image, SAVE_DIR)
 
 
 def transform_byte_to_object(byte_data):
