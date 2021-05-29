@@ -28,15 +28,19 @@ else:
         try:
             response = requests.get(f"{MAIN_SERVER_ENDPOINT}/styles/{styleID}/active-model")
             data = json.loads(response.content.decode('utf-8'))
-            
-            exchangeName = data.get("exchangeName")
+            EXCHANGE_TRANSFER_PHOTO = os.environ.get("EXCHANGE_TRANSFER_PHOTO")
+            EXCHANGE_UPDATE_MODEL = os.environ.get("EXCHANGE_UPDATE_MODEL")
+            routing_key = data.get("transportChannelName")
             modelType = data.get("modelType")
-            snapshotPath = data.get("snapshotPath")
-            generator_worker = GeneratorWorker(exchange_name=exchangeName, queue_host=QUEUE_HOST,
-                                               queue_name = QUEUE_NAME,
-                                               snapshot_path=snapshotPath,
-                                               main_server_endpoint=MAIN_SERVER_ENDPOINT
-                                               )
+            snapshot_path = data.get("snapshotPath")
+            generator_worker = GeneratorWorker(
+                exchange_transfer_photo_name=EXCHANGE_TRANSFER_PHOTO,
+                exchange_update_model_name=EXCHANGE_UPDATE_MODEL,
+                queue_host=QUEUE_HOST,
+                routing_key=routing_key,
+                snapshot_path=snapshot_path,
+                main_server_endpoint=MAIN_SERVER_ENDPOINT
+            )
             generator_worker.start_task()
         except KeyboardInterrupt:
             print('Interrupted')

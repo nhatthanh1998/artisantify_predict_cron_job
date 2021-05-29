@@ -1,11 +1,29 @@
 import torch
 from torchvision.transforms import transforms
-from torchvision.utils import save_image
 from dotenv import load_dotenv
 import os
 import json
 import boto3
 import io
+
+
+def init_s3_bucket(env, bucket):
+    if env == "production":
+        s3_client = boto3.client('s3')
+
+    else:
+        AWS_PUBLIC_KEY = os.environ.get("AWS_PUBLIC_KEY")
+        AWS_PRIVATE_KEY = os.environ.get("AWS_PRIVATE_KEY")
+        session = boto3.Session(
+            aws_access_key_id=AWS_PUBLIC_KEY,
+            aws_secret_access_key=AWS_PRIVATE_KEY
+        )
+        s3_client = session.client('s3')
+
+    region = s3_client.get_bucket_location(Bucket=bucket)['LocationConstraint']
+
+    return s3_client, region
+
 
 load_dotenv()
 
@@ -19,26 +37,6 @@ transform_tensor_to_pil_image = transforms.Compose(
         transforms.ToPILImage()
     ]
 )
-
-
-def init_s3_bucket(env, bucket):
-    
-    if env == "production":
-        s3 = boto3.client('s3')
-
-    else:
-        AWS_PUBLIC_KEY = os.environ.get("AWS_PUBLIC_KEY")
-        AWS_PRIVATE_KEY = os.environ.get("AWS_PRIVATE_KEY")
-        session = boto3.Session(
-            aws_access_key_id=AWS_PUBLIC_KEY,
-            aws_secret_access_key=AWS_PRIVATE_KEY
-        )
-        s3 = session.client('s3')
-
-    S3_REGION = s3.get_bucket_location(Bucket=bucket)['LocationConstraint']
-
-    return s3, S3_REGION
-
 
 
 def load_model(path, generator, device):
