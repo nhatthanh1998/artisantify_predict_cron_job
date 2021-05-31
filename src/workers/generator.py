@@ -35,7 +35,7 @@ class GeneratorWorker:
     def preprocess(self, photo_access_url):
         model_input = Image.open(requests.get(photo_access_url, stream=True).raw)
         model_input = self.transform_(model_input).unsqueeze(0)
-        return model_input
+        return model_input.to(self.device)
 
     def inference(self, model_input):
         return self.generator(model_input)[0]
