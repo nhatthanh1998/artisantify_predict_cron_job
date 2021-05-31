@@ -6,7 +6,6 @@ from src.utils.utils import load_model, transform, transform_byte_to_object, sav
 import uuid
 import pika
 from datetime import datetime
-from torchvision.utils import save_image
 
 
 class GeneratorWorker:
@@ -41,18 +40,17 @@ class GeneratorWorker:
     def inference(self, model_input):
         return self.generator(model_input)[0]
 
-    def post_process(self, model_output, image_name, socketId):
-        save_image(model_output, './my_image.jpg')
+    def post_process(self, model_output, image_name, socketId, style_id):
         byte_data = transform_tensor_to_bytes(model_output)
         image_location = save_image_to_s3(byte_data, image_name)
 
         endpoint_url = f"{self.main_server_endpoint}/photos/transfer-photo/completed"
 
-        payload = {'socketId': socketId, 'transferPhotoLocation': image_location}
+        payload = {'socketId': socketId, 'transferPhotoLocation': image_location, 'styleId': style_id}
         requests.post(endpoint_url, data=payload)
         torch.cuda.empty_cache()
 
-    def handler(self, ch, method, photo_access_url, socketId, image_name):
+    def handler(self, ch, method, photo_access_url, socketId, image_name, style_id):
         # 1. Preprocess
         model_input = self.preprocess(photo_access_url=photo_access_url)
 
@@ -60,7 +58,7 @@ class GeneratorWorker:
         model_output = self.inference(model_input=model_input)
 
         # 3. Post process
-        self.post_process(model_output=model_output, image_name=image_name, socketId=socketId)
+        self.post_process(model_output=model_output, image_name=image_name, socketId=socketId, style_id=style_id)
 
         # 4. Ack the processed message.
         ch.basic_ack(delivery_tag=method.delivery_tag)
@@ -68,14 +66,15 @@ class GeneratorWorker:
     def process_transfer_photo_task(self, ch, method, properties, body):
         print("Transfer photo task on process...")
         data = transform_byte_to_object(body)
+        style_id = data['styleId']
         # extract data from body
         socketId = data['socketId']
         accessURL = data['accessURL']
         date_time = datetime.now().strftime("%m-%d-%Y")
         image_name = f"{date_time}/{uuid.uuid4()}.jpg"
-
         # Put data to model process pipeline
-        self.handler(ch=ch, method=method, photo_access_url=accessURL, socketId=socketId, image_name=image_name)
+        self.handler(ch=ch, method=method, photo_access_url=accessURL, socketId=socketId, image_name=image_name,
+                     style_id=style_id)
         print("Transfer done")
 
     def process_update_model_task(self, ch, method, properties, body):
