@@ -16,7 +16,6 @@ class GeneratorWorker:
                  snapshot_path,
                  main_server_endpoint):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.exchange_topic_name = 'topic-name'
         self.snapshot_path = snapshot_path
         self.queue_host = queue_host
         self.exchange_transfer_photo_name = exchange_transfer_photo_name

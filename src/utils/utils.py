@@ -16,7 +16,6 @@ S3_BUCKET_TEMPORARY = os.environ.get("S3_BUCKET_TEMPORARY")
 def init_s3_bucket(env, bucket):
     if env == "production":
         s3_client = boto3.client('s3')
-
     else:
         AWS_PUBLIC_KEY = os.environ.get("AWS_PUBLIC_KEY")
         AWS_PRIVATE_KEY = os.environ.get("AWS_PRIVATE_KEY")

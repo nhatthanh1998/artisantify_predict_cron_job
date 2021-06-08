@@ -8,10 +8,7 @@ import json
 
 
 load_dotenv()
-EXCHANGE_NAME = os.environ.get("EXCHANGE_NAME")
 QUEUE_HOST = os.environ.get("QUEUE_HOST")
-QUEUE_NAME = os.environ.get("QUEUE_NAME")
-
 MAIN_SERVER_ENDPOINT = os.environ.get("MAIN_SERVER_ENDPOINT")
 parser = argparse.ArgumentParser()
 
