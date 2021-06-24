@@ -60,7 +60,8 @@ class GeneratorWorker:
         # # 4. Ack the processed message.
         # ch.basic_ack(delivery_tag=method.delivery_tag)
         print("Receive")
-        apply_style_to_video(video_location, self.generator, self.device)
+        print(video_location)
+        apply_style_to_video(video_location, self.generator, self.device, self.transform_)
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def process_transfer_photo_task(self, ch, method, properties, body):

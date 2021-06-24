@@ -53,7 +53,6 @@ def transform():
     """ Transforms for training images """
     transform_ = transforms.Compose(
         [
-            transforms.Resize(256),
             transforms.ToTensor()
         ]
     )
@@ -93,7 +92,7 @@ def add_audio_to_transfer_video(original_video_path, transfer_video_path, output
 
 
 def convert_to_hls_stream(video_path, output_dir):
-    rs = os.popen(f'bash src/scripts/convert_to_bls_stream.sh {video_path} {output_dir}').close()
+    rs = os.popen(f'bash src/scripts/convert_to_hls_stream.sh {video_path} {output_dir}').close()
 
 
 def convert_video_to_frames(video_path, frame_dir):
@@ -113,47 +112,52 @@ def convert_video_to_frames(video_path, frame_dir):
 def convert_frame_to_video(frame_dir, output_path, total_frames, fps):
     img = cv2.imread(frame_dir + '/frame_1.jpg')
     height, width, layers = img.shape
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     video = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
     for i in range(1, total_frames):
+        print(frame_dir + '/frame_' + str(i) + '.jpg')
         video.write(cv2.imread(frame_dir + '/frame_' + str(i) + '.jpg'))
     cv2.destroyAllWindows()
+    print("convert done:", output_path)
     video.release()
 
 
-def apply_style_to_frame(generator, frame_dir, frame_name, output_dir, device):
+def apply_style_to_frame(device, generator, transform_func, frame_dir, frame_name, output_dir):
     if frame_name.endswith('.jpg'):
         frame_path = f"{frame_dir}/{frame_name}"
-        tensor = transform(Image.open(frame_path)).unsqueeze(0).to(device)
+        tensor = transform_func(Image.open(frame_path)).unsqueeze(0).to(device)
         tensor = generator(tensor)
         save_image(tensor, f"{output_dir}/{frame_name}")
 
 def download_video_file(video_url, save_path):
     urllib.request.urlretrieve(video_url, save_path)
 
-def apply_style_to_video(video_path, generator, device):
+
+def apply_style_to_video(video_path, generator, device, transform_func):
     save_downloaded_video_path = f"src/process/{uuid.uuid4()}.mp4"
     frame_dir = f"src/process/{uuid.uuid4()}"
+    frame_dir="src/process/71a8d50e-4d19-413c-a1bd-2479b38af333"
     transfer_frame_dir = f"src/process/{uuid.uuid4()}"
-    output_video_path = f"src/process/{uuid.uuid4()}/output.mp4"
-    output_video_w_audio_path = f"src/process/{uuid.uuid4()}/output_audio.mp4"
-    hls_dir = f"src/process/{uuid.uuid4()}"
+    output_dir = f"src/process/{uuid.uuid4()}"
+    output_video_path = f"{output_dir}/output.mp4"
+    output_video_w_audio_path = f"{output_dir}/output_w_audio.mp4"
 
     mkdir(frame_dir)
     mkdir(transfer_frame_dir)
+    mkdir(output_dir)
     print("Download video....")
     download_video_file(video_path, save_downloaded_video_path)
     print("Convert original video to frame....")
     fps, total_frames = convert_video_to_frames(save_downloaded_video_path, frame_dir)
-    files = os.listdir(frame_dir)
     print("Apply style to frame ....")
+    files = os.listdir(frame_dir)
     for file_name in files:
-        apply_style_to_frame(device, generator, frame_dir, file_name, transfer_frame_dir)
+        apply_style_to_frame(device, generator, transform_func, frame_dir, file_name, transfer_frame_dir)
     print("Convert frame to video ....")
-    convert_frame_to_video(transfer_frame_dir, output_video_path, total_frames, fps)
+    convert_frame_to_video(transfer_frame_dir, output_video_path, 1853, 24)
     print("Add audio to video ....")
     add_audio_to_transfer_video(video_path, output_video_path, output_video_w_audio_path)
     print("Convert video to HLS stream format....")
-    convert_to_hls_stream(output_video_w_audio_path, hls_dir)
+    convert_to_hls_stream(output_video_w_audio_path, output_dir)
     # S3
     print("Done")
