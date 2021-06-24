@@ -1,3 +1,5 @@
+import uuid
+
 import torch
 from torchvision.transforms import transforms
 from dotenv import load_dotenv
@@ -7,10 +9,19 @@ import boto3
 import io
 from torchvision.utils import make_grid
 from PIL import Image
+import cv2
+import math
+from torchvision.utils import save_image
+import urllib
 
 load_dotenv()
 ENV = os.environ.get("ENV", "dev")
 S3_BUCKET_TEMPORARY = os.environ.get("S3_BUCKET_TEMPORARY")
+
+
+def mkdir(path):
+    print("mkdir.......")
+    os.makedirs(path, exist_ok=True)
 
 
 def init_s3_bucket(env, bucket):
@@ -71,3 +82,78 @@ def get_s3_location(key):
 def save_image_to_s3(binary_data, key):
     s3.put_object(Body=binary_data, Bucket=S3_BUCKET_TEMPORARY, Key=key)
     return get_s3_location(key)
+
+
+# Transfer
+
+
+def add_audio_to_transfer_video(original_video_path, transfer_video_path, output_path):
+    rs = os.popen(
+        f'bash src/scripts/combine_video_audio.sh {transfer_video_path} {original_video_path} {output_path}').close()
+
+
+def convert_to_hls_stream(video_path, output_dir):
+    rs = os.popen(f'bash src/scripts/convert_to_bls_stream.sh {video_path} {output_dir}').close()
+
+
+def convert_video_to_frames(video_path, frame_dir):
+    mkdir(frame_dir)
+    capture_video = cv2.VideoCapture(video_path)
+    fps = math.ceil(capture_video.get(cv2.CAP_PROP_FPS))
+    success, frame = capture_video.read()
+    total_frame = 1
+    while success:
+        capture_video.set(cv2.CAP_PROP_POS_MSEC, (total_frame * 1000 / fps))
+        cv2.imwrite(frame_dir + "/frame_%d.jpg" % total_frame, frame)
+        success, frame = capture_video.read()
+        total_frame += 1
+    return total_frame, fps
+
+
+def convert_frame_to_video(frame_dir, output_path, total_frames, fps):
+    img = cv2.imread(frame_dir + '/frame_1.jpg')
+    height, width, layers = img.shape
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    video = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+    for i in range(1, total_frames):
+        video.write(cv2.imread(frame_dir + '/frame_' + str(i) + '.jpg'))
+    cv2.destroyAllWindows()
+    video.release()
+
+
+def apply_style_to_frame(generator, frame_dir, frame_name, output_dir, device):
+    if frame_name.endswith('.jpg'):
+        frame_path = f"{frame_dir}/{frame_name}"
+        tensor = transform(Image.open(frame_path)).unsqueeze(0).to(device)
+        tensor = generator(tensor)
+        save_image(tensor, f"{output_dir}/{frame_name}")
+
+def download_video_file(video_url, save_path):
+    urllib.request.urlretrieve(video_url, save_path)
+
+def apply_style_to_video(video_path, generator, device):
+    save_downloaded_video_path = f"src/process/{uuid.uuid4()}.mp4"
+    frame_dir = f"src/process/{uuid.uuid4()}"
+    transfer_frame_dir = f"src/process/{uuid.uuid4()}"
+    output_video_path = f"src/process/{uuid.uuid4()}/output.mp4"
+    output_video_w_audio_path = f"src/process/{uuid.uuid4()}/output_audio.mp4"
+    hls_dir = f"src/process/{uuid.uuid4()}"
+
+    mkdir(frame_dir)
+    mkdir(transfer_frame_dir)
+    print("Download video....")
+    download_video_file(video_path, save_downloaded_video_path)
+    print("Convert original video to frame....")
+    fps, total_frames = convert_video_to_frames(save_downloaded_video_path, frame_dir)
+    files = os.listdir(frame_dir)
+    print("Apply style to frame ....")
+    for file_name in files:
+        apply_style_to_frame(device, generator, frame_dir, file_name, transfer_frame_dir)
+    print("Convert frame to video ....")
+    convert_frame_to_video(transfer_frame_dir, output_video_path, total_frames, fps)
+    print("Add audio to video ....")
+    add_audio_to_transfer_video(video_path, output_video_path, output_video_w_audio_path)
+    print("Convert video to HLS stream format....")
+    convert_to_hls_stream(output_video_w_audio_path, hls_dir)
+    # S3
+    print("Done")

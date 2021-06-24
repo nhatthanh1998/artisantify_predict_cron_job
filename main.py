@@ -24,16 +24,11 @@ else:
         try:
             response = requests.get(f"{MAIN_SERVER_ENDPOINT}/styles/{styleID}/active-model")
             data = json.loads(response.content.decode('utf-8'))
-            EXCHANGE_TRANSFER_PHOTO = os.environ.get("EXCHANGE_TRANSFER_PHOTO")
-            EXCHANGE_UPDATE_MODEL = os.environ.get("EXCHANGE_UPDATE_MODEL")
             routing_key = data.get("routingKey")
             modelType = data.get("modelType")
             snapshot_path = data.get("snapshotPath")
             generator_worker = GeneratorWorker(
-                exchange_transfer_photo_name=EXCHANGE_TRANSFER_PHOTO,
-                exchange_update_model_name=EXCHANGE_UPDATE_MODEL,
                 queue_host=QUEUE_HOST,
-                routing_key=routing_key,
                 snapshot_path=snapshot_path,
                 main_server_endpoint=MAIN_SERVER_ENDPOINT
             )
