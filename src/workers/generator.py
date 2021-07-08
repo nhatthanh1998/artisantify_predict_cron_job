@@ -43,7 +43,7 @@ class GeneratorWorker:
         byte_data = transform_tensor_to_bytes(model_output)
         image_location = save_image_to_s3(byte_data, image_name)
 
-        endpoint_url = f"{self.main_server_endpoint}/photos/transfer-photo/completed"
+        endpoint_url = f"{self.main_server_endpoint}/medias/transfer-photo/completed"
 
         payload = {'socketId': socketId, 'transferPhotoLocation': image_location, 'styleId': style_id}
         requests.post(endpoint_url, data=payload)
